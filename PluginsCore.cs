@@ -72,7 +72,8 @@ namespace Oracle
             typeof(Ability.TelekinisisUnlock.GetActionsPatch),
 
             // ── 战斗模块 · 自瞄与后坐力 ──
-            typeof(Combat.NoRecoilPatch),
+            typeof(Combat.NoRecoilNewPatch),
+            typeof(Combat.NoRecoilOldPatch),
             typeof(Combat.MagicBulletPatch),
 
             // ── 战斗模块 · 无限弹药（四条开火链路各自处理）──

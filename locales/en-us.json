@@ -1,4 +1,4 @@
-{
+﻿{
     "Language": "English",
   "Translate": {
     "text_enable": "Enable",
@@ -51,6 +51,8 @@
     "cfg_global_module_overlay_debug_taskbar_desc": "Show the overlay window in the Windows taskbar to verify the window was created. Applies on next overlay re-enable.",
     "cfg_global_module_overlay_debug_testframe_name": "Overlay Debug: Test Frame",
     "cfg_global_module_overlay_debug_testframe_desc": "Bypass the data bridge and draw a red block + text directly to the overlay window. Visible = window/GDI pipeline OK; invisible = window layer problem.",
+    "cfg_global_module_overlay_debug_hud_name": "Top-Left Status HUD",
+    "cfg_global_module_overlay_debug_hud_desc": "Show raid status (nickname / group / alive count / position) in the top-left corner. Used to verify game object capture; keep it off normally.",
     "message_uni_gui_enable": "Global rendering has been {0}",
     "cfg_global_module_screen_crosshair_enable_name": "Enable Custom Crosshair",
     "cfg_global_module_screen_crosshair_enable_desc": "Display a custom crosshair at screen center.",

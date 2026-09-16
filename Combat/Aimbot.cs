@@ -193,30 +193,76 @@ namespace Oracle.Combat
     // ══════════════════════ Harmony Patch ══════════════════════
 
     /// <summary>
-    /// 后坐力控制。
+    /// 后坐力控制 —— 拦截点：`AddRecoilForce(float incomingForce)`。
     ///
-    /// SPT5 中 ShotEffector.Process 的签名为 void Process(float str)，
-    /// 参数名 `str` 与原版补丁完全一致，可直接按名绑定。
+    /// ══════════════ 为什么不再挂 ShotEffector.Process ══════════════
+    ///
+    /// 4.1 挂的是 `ShotEffector.Process`，那一版**能工作**；但它的方法体只有一行：
+    ///
+    ///     public void Process(float str = 1f)
+    ///     {
+    ///         this.CurrentRecoilEffect.AddRecoilForce(str);
+    ///     }
+    ///
+    /// IL2CPP 的 C++ 编译器会把这种单行转发方法**完全内联进调用点**：
+    /// 独立的原生方法仍然存在（所以 Harmony 挂接成功、不报错、配置项也正常读），
+    /// 但没有任何调用会真正经过它 ⇒ detour 永远不触发 ⇒ 补丁静默失效。
+    /// 这与「消除武器后座」「超低武器后座」**两个默认开启的功能同时不生效**的现象完全吻合
+    /// （NoRecoil 默认 true，只要补丁触发就必然是 `return false`，后坐力不可能还在）。
+    ///
+    /// ⇒ 改为挂它唯一转发到的 `AddRecoilForce`：4.1 源码里这两个方法各有三十余行实体逻辑
+    ///   （含循环与虚调用），不可能被内联，是真正稳定的咽喉点。
+    ///
+    /// ⚠ 必须**两个实现都挂**：5.0 保留了新旧两套后坐力模型
+    ///   （`ShotEffector.SetOldRecoilMode` / `SetNewRecoilMode` 二选一），
+    ///   运行时只有一个会被启用。只挂其中一个的话，切到另一套模式功能就失效。
+    ///
+    /// ⚠ 不要把 Process 也一起挂上：若它并未被内联，倍率会被**连乘两次**（0.2 × 0.2）。
+    ///   挂 AddRecoilForce 已经完整覆盖 Process 那条路径（Process 只是转发到它）。
+    ///
+    /// ⚠ 参数用位置占位符 `__0` 而非参数名：Harmony 支持对按值传递的参数声明
+    ///   `ref` 并写回（本项目的魔法子弹补丁已实测验证这一点），而按位置绑定
+    ///   不依赖 5.0 是否改过参数名。
     /// </summary>
-    [HarmonyPatch(typeof(ShotEffector), nameof(ShotEffector.Process))]
-    public static class NoRecoilPatch
+    internal static class RecoilControl
     {
-        private static bool Prefix(ShotEffector __instance, ref float str)
+        /// <summary>两个补丁共用的判定逻辑</summary>
+        internal static bool Prefix(ref float __0)
         {
             if (AimbotCfg.NoRecoil.Value)
             {
                 // 完全消后坐：跳过原方法
+                OracleLog.Once("norecoil_fired",
+                    "[Oracle] 后坐力补丁已生效（AddRecoilForce 已拦截）");
                 return false;
             }
 
             if (AimbotCfg.LowRecoil.Value)
             {
                 // 降低后坐：按倍率缩放力值后交给原方法
-                str *= AimbotCfg.LowRecoilMuti.Value;
+                __0 *= AimbotCfg.LowRecoilMuti.Value;
+                OracleLog.Once("lowrecoil_fired",
+                    $"[Oracle] 超低后坐已生效（力值 × {AimbotCfg.LowRecoilMuti.Value}）");
             }
 
             return true;
         }
+    }
+
+    /// <summary>新后坐力模型（5.0 默认）</summary>
+    [HarmonyPatch(typeof(EFT.Animations.NewRecoil.NewRecoilShotEffect),
+        nameof(EFT.Animations.NewRecoil.NewRecoilShotEffect.AddRecoilForce))]
+    public static class NoRecoilNewPatch
+    {
+        private static bool Prefix(ref float __0) => RecoilControl.Prefix(ref __0);
+    }
+
+    /// <summary>旧后坐力模型（由 ShotEffector.SetOldRecoilMode 切换）</summary>
+    [HarmonyPatch(typeof(EFT.Animations.OldRecoilShotEffect),
+        nameof(EFT.Animations.OldRecoilShotEffect.AddRecoilForce))]
+    public static class NoRecoilOldPatch
+    {
+        private static bool Prefix(ref float __0) => RecoilControl.Prefix(ref __0);
     }
 
     /// <summary>

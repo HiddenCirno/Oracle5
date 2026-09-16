@@ -291,6 +291,14 @@ namespace Oracle.Utils
         internal static ConfigEntry<bool> OverlayDebugShowInTaskbar { get; set; }
         /// <summary>调试：强制显示自检测试帧（红块+文字），验证窗口/GDI 管线是否通畅</summary>
         internal static ConfigEntry<bool> OverlayDebugTestFrame { get; set; }
+        /// <summary>
+        /// 调试：在屏幕左上角显示运行状态 HUD（战局 / 玩家数 / 坐标）。
+        ///
+        /// 这是移植期验证游戏对象捕获链路用的，默认关闭 —— 它是 IMGUI 绘制的
+        /// （GUI.Label），**不走叠加层那条 GDI 路径**，所以开着会压在所有 ESP 之上。
+        /// 归到绘制层分区是因为它属于"画什么"这一类，而不是某个模块的功能开关。
+        /// </summary>
+        internal static ConfigEntry<bool> OverlayDebugHud { get; set; }
 
         /// <summary>
         /// 配置项初始化
@@ -340,6 +348,21 @@ namespace Oracle.Utils
                         DispName = "cfg_global_module_overlay_debug_testframe_name".i18n(),
                         IsAdvanced = true,
                         Order = 395
+                    }
+                )
+            );
+            OverlayDebugHud = config.Bind(
+                "0. 联觉信标 / Draw Module",
+                "左上角状态 HUD",
+                false,
+                new ConfigDescription(
+                    "cfg_global_module_overlay_debug_hud_desc".i18n(),
+                    null,
+                    new ConfigurationManagerAttributes
+                    {
+                        DispName = "cfg_global_module_overlay_debug_hud_name".i18n(),
+                        IsAdvanced = false,
+                        Order = 394
                     }
                 )
             );

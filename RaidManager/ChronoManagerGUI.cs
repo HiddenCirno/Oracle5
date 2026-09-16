@@ -204,19 +204,19 @@ namespace Oracle.RaidManager
             GUILayout.Space(4);
 
             GUILayout.BeginHorizontal();
-            bool smooth = ChronoCfg.SmoothDuration.Value > 0f;
+            bool smooth = ChronoManager.SmoothDuration > 0f;
             if (GUILayout.Button(
                     smooth ? "text_chrono_smooth_on".i18n() : "text_chrono_smooth_off".i18n(),
                     smooth ? UIStyleManager.ToggleOnStyle : UIStyleManager.ToggleOffStyle,
                     GUILayout.Height(24), GUILayout.Width(150)))
             {
                 // 在"平滑"与"瞬跳"之间切换：直接改配置项，面板与设置页同步
-                ChronoCfg.SmoothDuration.Value = smooth ? 0f : 2f;
+                ChronoManager.SmoothDuration = smooth ? 0f : 2f;
             }
 
             if (GUILayout.Button("text_chrono_apply".i18n(), UIStyleManager.BlueButtonStyle, GUILayout.Height(24)))
             {
-                ChronoManager.SetGameTime(_targetHour, _targetMinute, ChronoCfg.SmoothDuration.Value);
+                ChronoManager.SetGameTime(_targetHour, _targetMinute, ChronoManager.SmoothDuration);
             }
 
             GUILayout.EndHorizontal();
@@ -237,7 +237,7 @@ namespace Oracle.RaidManager
                     int[] hours = { 5, 12, 19, 0 };
                     _targetHour = hours[index];
                     _targetMinute = 0;
-                    ChronoManager.SetGameTime(hours[index], 0, ChronoCfg.SmoothDuration.Value);
+                    ChronoManager.SetGameTime(hours[index], 0, ChronoManager.SmoothDuration);
                 });
 
             GUILayout.Space(6);
@@ -355,7 +355,7 @@ namespace Oracle.RaidManager
                 UIStyleManager.NormalButtonStyle,
                 index =>
                 {
-                    float smooth = ChronoCfg.SmoothDuration.Value;
+                    float smooth = ChronoManager.SmoothDuration;
 
                     switch (index)
                     {

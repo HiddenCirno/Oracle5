@@ -1,4 +1,3 @@
-using BepInEx.Configuration;
 using EFT;
 using EFT.Weather;
 using Oracle.Data;
@@ -135,6 +134,16 @@ namespace Oracle.Chrono
 
         /// <summary>是否已接管天气</summary>
         public static bool Takeover { get; private set; }
+
+        /// <summary>
+        /// 天色平滑过渡时长（秒）。0 = 立即切换。
+        ///
+        /// ⚠ 这是**战局内的实时状态**，不是配置项 —— 由 F8 面板的开关直接改写。
+        ///   原先它挂在 ChronoCfg 上，导致「面板改设置」要绕一圈配置文件，
+        ///   而且改完会写盘、跨战局残留。战局管理的所有功能都应当是实时的、
+        ///   不落盘的，所以统一收敛到内存变量。
+        /// </summary>
+        public static float SmoothDuration = 2f;
 
         /// <summary>是否正在做天色平滑过渡</summary>
         public static bool Transitioning => _transitioning;
@@ -329,7 +338,7 @@ namespace Oracle.Chrono
                 return;
             }
 
-            float duration = ChronoCfg.SmoothDuration.Value;
+            float duration = SmoothDuration;
             if (duration <= 0.01f) duration = 0.01f;
 
             _transitionElapsed += Time.unscaledDeltaTime;
@@ -517,65 +526,4 @@ namespace Oracle.Chrono
         }
     }
 
-    /// <summary>配置项定义</summary>
-    [OracleCfgOrder(6)]
-    public class ChronoCfg : IOracleCfg
-    {
-        internal static ConfigEntry<float> DefaultTimeFactor { get; set; }
-        internal static ConfigEntry<float> SmoothDuration { get; set; }
-        internal static ConfigEntry<bool> EnableWeatherTakeover { get; set; }
-
-        private const string Section = "6. 晨昏线 / Chrono Module";
-
-        public void Initialize(ConfigFile config)
-        {
-            DefaultTimeFactor = config.Bind(
-                Section,
-                "默认时间流速",
-                7f,
-                new ConfigDescription(
-                    "cfg_chrono_module_default_time_factor_desc".i18n(),
-                    new AcceptableValueRange<float>(0.1f, 120f),
-                    new ConfigurationManagerAttributes
-                    {
-                        DispName = "cfg_chrono_module_default_time_factor_name".i18n(),
-                        IsAdvanced = false,
-                        Order = 119
-                    }
-                )
-            );
-
-            SmoothDuration = config.Bind(
-                Section,
-                "天色平滑过渡时长",
-                2f,
-                new ConfigDescription(
-                    "cfg_chrono_module_smooth_duration_desc".i18n(),
-                    new AcceptableValueRange<float>(0f, 30f),
-                    new ConfigurationManagerAttributes
-                    {
-                        DispName = "cfg_chrono_module_smooth_duration_name".i18n(),
-                        IsAdvanced = false,
-                        Order = 118
-                    }
-                )
-            );
-
-            EnableWeatherTakeover = config.Bind(
-                Section,
-                "启用天气接管",
-                false,
-                new ConfigDescription(
-                    "cfg_chrono_module_enable_weather_desc".i18n(),
-                    null,
-                    new ConfigurationManagerAttributes
-                    {
-                        DispName = "cfg_chrono_module_enable_weather_name".i18n(),
-                        IsAdvanced = false,
-                        Order = 117
-                    }
-                )
-            );
-        }
-    }
 }

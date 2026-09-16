@@ -70,7 +70,14 @@ namespace Oracle
                 // 以下仅重绘阶段执行
                 if (Event.current.type != EventType.Repaint) return;
 
-                DrawDebugHud();
+                // 左上角状态 HUD —— 移植期验证游戏对象捕获链路用的，默认关闭。
+                // 开关归在「0. 联觉信标 / Draw Module」分区（见 NativeOverlayCfg.OverlayDebugHud）。
+                //
+                // ⚠ 它是 IMGUI 绘制的，不走叠加层那条 GDI 路径，所以开启后会压在所有 ESP 之上。
+                if (NativeOverlayCfg.OverlayDebugHud.Value)
+                {
+                    DrawDebugHud();
+                }
 
                 // ⚠ 两条绘制路径**互斥**：叠加层开启时由 GDI 渲染线程接管 ESP/自瞄的绘制，
                 //   此时必须跳过 OnGUI 路径，否则同一份 ESP 会被画两遍。

@@ -16,8 +16,19 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Oracle</AssemblyName>
     <RootNamespace>Oracle</RootNamespace>
+    <!-- 与 PluginsInfo.VERSION 保持一致。
+         程序集版本写在 PE 头里，属性面板能直接看到 —— 排查"部署的是不是最新构建"
+         时比翻日志快得多（本项目已经因为部署了旧 DLL 白跑过两轮测试）。 -->
+    <Version>5.0.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <!-- 直接输出到插件目录，省掉手工拷贝这个反复出错的环节。
+         ★ 关键收益：下面 locales\*.json 与 crosshairs\*.png 的
+           CopyToOutputDirectory 是相对 $(OutDir) 解析的，所以它们会**一起**
+           落到插件目录 —— 原先只拷 DLL、忘了拷 locales，会导致配置面板里的
+           中文显示成 key 原文（词条缺失时 i18n 直接把键吐回来）。 -->
+    <OutDir>I:\build\BepInEx\plugins\Oracle</OutDir>
     <!-- 旧工程引用了 System.Windows.Forms / System.Drawing.Design 但从未使用，此处不再引用
          CS0649：事件字段由其他类通过 += 赋值，以及 ConfigurationManagerAttributes 的
                  公开字段由对象初始化器赋值，编译器看不到，属误报 -->

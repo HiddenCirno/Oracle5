@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Oracle 5.0 —— SPT 5 (BepInEx 6 / Unity IL2CPP) 版本
+
+    与旧 Mono 工程的关键差异：
+      · TargetFramework 必须是 net6.0 —— BepInEx 6 的 CoreCLR 宿主运行时是 .NET 6.0.7
+      · 游戏程序集不在 EscapeFromTarkov_Data\Managed（该目录在 IL2CPP 下不存在），
+        而是 Il2CppInterop 生成的代理程序集，位于 BepInEx\interop
+      · 入口基类是 BepInEx.Unity.IL2CPP.BasePlugin（不是 BaseUnityPlugin），它本身不是
+        MonoBehaviour —— Update/OnGUI/协程需要另行挂载组件
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Oracle</AssemblyName>
+    <RootNamespace>Oracle</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <!-- 旧工程引用了 System.Windows.Forms / System.Drawing.Design 但从未使用，此处不再引用
+         CS0649：事件字段由其他类通过 += 赋值，以及 ConfigurationManagerAttributes 的
+                 公开字段由对象初始化器赋值，编译器看不到，属误报 -->
+    <NoWarn>$(NoWarn);CS0436;CS0108;CS0114;CS0649</NoWarn>
+  </PropertyGroup>
+
+  <!-- 游戏根目录：换机器只需改这一处 -->
+  <PropertyGroup>
+    <GameDir>I:\build</GameDir>
+    <BepInExCore>$(GameDir)\BepInEx\core</BepInExCore>
+    <InteropDir>$(GameDir)\BepInEx\interop</InteropDir>
+  </PropertyGroup>
+
+  <!-- BepInEx 6 宿主与运行时 -->
+  <ItemGroup>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(BepInExCore)\BepInEx.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx.Unity.IL2CPP">
+      <HintPath>$(BepInExCore)\BepInEx.Unity.IL2CPP.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCore)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(BepInExCore)\Il2CppInterop.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Common">
+      <HintPath>$(BepInExCore)\Il2CppInterop.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    游戏代理程序集（含 Assembly-CSharp、UnityEngine.*、Comfort、DissonanceVoip、
+    ItemComponent.Types、Newtonsoft.Json、Sirenix.* 等）。
+    这些是 Il2CppInterop 生成的编译期绑定目标 —— 取代了 Mono 时代的反射。
+    通配引用：游戏更新后重新生成即可，无需逐个维护。
+  -->
+  <ItemGroup>
+    <Reference Include="$(InteropDir)\*.dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- 随插件分发的资源 -->
+  <ItemGroup>
+    <None Include="locales\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="crosshairs\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

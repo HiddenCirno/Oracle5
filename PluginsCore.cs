@@ -48,6 +48,10 @@ namespace Oracle
         private static readonly Type[] PatchTypes =
         {
             typeof(GameStartPatch),
+            // ★ 战局结束清理 —— 原先只有「开始」没有「结束」，
+            //   导致离开战局后 InRaid 仍为 true、绘制继续用上一局的缓存数据
+            //   （叠加层永久定格 + 跨局陈旧骨骼引用 NRE 的来源）
+            typeof(Patches.RaidEndPatch),
 
             // ── 能力模块 · 生存 ──
             typeof(Ability.GodMode.ApplyDamageInfoPatch),

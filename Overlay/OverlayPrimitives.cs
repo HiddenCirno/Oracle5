@@ -1,3 +1,4 @@
+using Oracle.Utils;
 using System;
 using System.Collections.Generic;
 
@@ -184,7 +185,11 @@ namespace Oracle.Overlay
             long now = Environment.TickCount;
             if (now - _lastLogMs >= 1000)
             {
-                System.Console.WriteLine($"[Oracle][Overlay] Store: {msg} 近1秒 publish={_publishCount} acquireNull={_acquireNullCount}");
+                // ⚠ 原实现是 System.Console.WriteLine —— 在 BepInEx 6 / IL2CPP 下
+                //   那是黑洞，日志里一个字都看不到。池耗尽是致命状态，
+                //   必须走 OracleLog 才能真正落在日志里。
+                OracleLog.Throttled("overlay_store",
+                    $"[叠加层] {msg}（近1秒 publish={_publishCount} acquireNull={_acquireNullCount}）");
                 _lastLogMs = now;
                 _publishCount = 0;
                 _acquireNullCount = 0;

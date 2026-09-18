@@ -85,14 +85,45 @@ namespace Oracle
                 {
                     // 数据桥：主线程把 3D 数据预计算成屏幕空间 2D 原语，
                     // 后台 GDI 渲染线程只消费原语 —— 不涉及 RenderTexture / GPU 回读。
-                    Camera cam = Camera.main;
-                    if (cam == null) return;
-
                     var block = NativeOverlay.Store.AcquireWriteBlock();
-                    if (block != null)
+                    if (block == null)
                     {
-                        OverlayPrimitiveBuilder.Build(cam, block);
+                        // ★ 池空的诊断原先走 System.Console.WriteLine（在 BepInEx IL2CPP 下是黑洞），
+                        //   所以"池已耗尽"这个致命状态一直在发生、却从没进过日志。
+                        OracleLog.Throttled("overlay_pool_empty",
+                            "[叠加层] 原语池已耗尽，无法发布新帧 —— 画面会永久定格在最后一帧");
+                        return;
+                    }
+
+                    try
+                    {
+                        Camera cam = Camera.main;
+
+                        // ★★ 不在战局中（或相机无效）时，发布【空帧】而不是直接 return。
+                        //
+                        //  原实现是 `if (cam == null) return;` —— 渲染线程拿不到新帧，
+                        //  而它是"保留模式"（无新帧则不动窗口），于是上一局最后一帧
+                        //  被永久留在那个 WS_EX_TOPMOST 窗口上，盖住结算界面、主菜单
+                        //  以及之后所有战局。
+                        //
+                        //  叠加层在非战局状态下本来就该是空的，所以这里发空帧是
+                        //  与正常行为一致的，而不是特例。
+                        if (OracleGameState.InRaid && cam != null)
+                        {
+                            OverlayPrimitiveBuilder.Build(cam, block);
+                        }
+                        // block 在 AcquireWriteBlock 里已 Reset，未 Build 时就是空帧
                         NativeOverlay.Store.Publish(block);
+                    }
+                    catch (Exception ex)
+                    {
+                        // ★★ 异常时【必须】把块还回池里。
+                        //
+                        //  原实现只 catch 了日志；AcquireWriteBlock 拿走的块既不 Publish
+                        //  也不归还 → 块凭空消失。池里只有 3 块，连抛 3 帧即永久枯竭，
+                        //  之后 AcquireWriteBlock 永远返回 null，叠加层再也不会更新。
+                        NativeOverlay.Store.ReturnBlock(block);
+                        OracleLog.Exception(nameof(OnGUI), "OverlayBuild", ex);
                     }
                     return;
                 }

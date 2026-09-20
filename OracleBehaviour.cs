@@ -32,6 +32,17 @@ namespace Oracle
         {
             try
             {
+                // 场景级状态校验（每帧兜底）。
+                //
+                // ⚠ 必须放在所有功能之前 —— 藏身处要在这里被判定为"非战局"、
+                //   已退出的战局要在这里被清掉；晚于功能模块执行的话，
+                //   本帧的功能仍会拿着错误状态跑一遍。
+                //
+                //   为什么不做成补丁见 OracleGameState.Validate 的说明：
+                //   场景退出类回调要么会被 IL2CPP 折叠（OnDestroy），
+                //   要么覆盖不全（SessionResultExitStatus.Show 不管藏身处）。
+                Data.OracleGameState.Validate();
+
                 // 能力模块的每帧逻辑。
                 // 原版把这些做成挂在玩家身上的组件，这里统一并入本组件，
                 // 省掉第二套类型注入与组件生命周期管理。

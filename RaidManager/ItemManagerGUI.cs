@@ -392,8 +392,11 @@ namespace Oracle.RaidManager
             // 数量为 0 的物品生成出来会立刻消失，兜底成 1
             if (item.StackObjectsCount <= 0) item.StackObjectsCount = 1;
 
+            // ⚠ 判据必须是 InRaid，**不能**只看 `LocalPlayer != null`。
+            //   藏身处同样有 LocalPlayer，只看它会误走"塞进背包"的战局分支 ——
+            //   物品被塞进藏身处那个玩家的背包里，看起来就是"仓库里生成没反应"。
             Player mainPlayer = OracleGameState.LocalPlayer;
-            if (mainPlayer != null)
+            if (OracleGameState.InRaid && mainPlayer != null)
             {
                 ItemSpawner.CloneAndSpawnItemIntoInventory(mainPlayer, item);
                 return;
@@ -413,8 +416,9 @@ namespace Oracle.RaidManager
 
             if (item.StackObjectsCount <= 0) item.StackObjectsCount = 1;
 
+            // 同上：藏身处不算战局，别在藏身处往地上丢东西
             Player mainPlayer = OracleGameState.LocalPlayer;
-            if (mainPlayer != null)
+            if (OracleGameState.InRaid && mainPlayer != null)
             {
                 ItemSpawner.CloneAndDropItem(mainPlayer, item);
             }

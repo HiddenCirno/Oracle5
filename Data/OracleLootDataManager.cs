@@ -57,6 +57,25 @@ namespace Oracle.Data
         private const int BatchSize = 300;
         private const float ScanInterval = 2f;
 
+        /// <summary>
+        /// 扫描周期的相位偏移。
+        ///
+        /// ══════════════ 为什么需要它 ══════════════
+        ///
+        /// 四个扫描器原先都是「同一瞬间启动 + 完全相同的 2 秒间隔」
+        /// （`PluginsCore.StartScanners()` 把它们背靠背启动），于是它们的
+        /// 批量处理总是落在同一批帧上 —— 四次抖动叠成一个尖峰。
+        ///
+        /// 实机反馈坐实了这个症状：高分机器上"每 2~3 秒卡一下"。
+        /// 高刷屏的帧预算只有 4~5ms（240Hz）/ 5~7ms（~200fps），
+        /// 一次几毫秒的主线程尖峰就是一次掉帧；60fps 下同样的开销被 16.6ms 的
+        /// 预算吞掉，所以只在快机器上暴露。
+        ///
+        /// 给每个扫描器一个**互不相同**的偏移，周期长度就不再相等，尖峰被摊开，
+        /// 而且因为周期不同，它们不会重新对齐。
+        /// </summary>
+        private const float PhaseOffset = 0f;
+
         /// <summary>物品栏的 TemplateId —— 尸体在数据上也是一种容器，需过滤</summary>
         private const string InventoryTemplateId = "55d7217a4bdc2d86028b456d";
 
@@ -76,11 +95,43 @@ namespace Oracle.Data
 
             while (true)
             {
-                yield return new WaitForSeconds(ScanInterval);
+                yield return new WaitForSeconds(ScanInterval + PhaseOffset);
 
                 if (!OracleGameState.InRaid)
                 {
                     // 出局清空，避免下一局开局头几秒画出上一局的物资鬼影
+                    CachedContainers = null;
+                    backBuffer.Clear();
+                    positionOffsets.Clear();
+                    Swap(ref frontBuffer, ref backBuffer);
+                    CachedLootList = frontBuffer;
+                    continue;
+                }
+
+                // ★★ 门禁：没人看就不扫。
+                //
+                //   本扫描器原先**没有任何开关判断** —— 无条件每 2 秒把全图
+                //   `world.LootItems` 走一遍（地图上常是几千条），再把每个容器的
+                //   物品树整个物化一遍，**即使战利品 ESP 全关着**。
+                //   这是"装了 Oracle 就卡"的主因。
+                //
+                //   数据的消费方只有三处，已逐一核对：
+                //     · 战利品 ESP        （ESP/LootESP.cs）
+                //     · 原生叠加层        （Overlay/OverlayPrimitiveBuilder.cs，同样读 LootESPCfg）
+                //     · F8 的战利品页签    （RaidManager/LootManagerGUI.cs）
+                //   前两者由 `LootESPCfg` 的两个开关控制；页签则要"面板开着"且
+                //   该分类没被它自己的过滤器关掉。两边都不需要 → 整轮跳过。
+                //
+                //   ⚠ 跳过时仍要清空并交换双缓冲：否则关掉开关后屏幕上会残留
+                //     上一轮画出的物品光标（数据不再更新，也没人把它清掉）。
+                bool panelShowsLoot = RaidManager.RaidManagerGUI._isMenuOpen;
+                bool needLoose = LootESPCfg.EnableLooseLootESP.Value
+                                 || (panelShowsLoot && RaidManager.LootManagerGUI.ShowLooseLoot);
+                bool needStatic = LootESPCfg.EnableContainerLootESP.Value
+                                  || (panelShowsLoot && RaidManager.LootManagerGUI.ShowStaticLoot);
+
+                if (!needLoose && !needStatic)
+                {
                     CachedContainers = null;
                     backBuffer.Clear();
                     positionOffsets.Clear();
@@ -101,7 +152,8 @@ namespace Oracle.Data
                 int batchCounter = 0;
 
                 // ── 散落物资（地面 LootItem）──
-                var lootItems = world.LootItems;
+                // 不需要就整段跳过（连 world.LootItems 都不取，避免无谓的互操作调用）
+                var lootItems = needLoose ? world.LootItems : null;
                 if (lootItems != null)
                 {
                     // 先快照：扫描期间游戏仍在增删，直接遍历活集合会抛异常
@@ -134,7 +186,14 @@ namespace Oracle.Data
                 }
 
                 // ── 容器内的物资 ──
-                if (CachedContainers == null)
+                // ⚠ 这一段比散落物资重得多：每个容器都要 `GetAllItems()` 物化一遍，
+                //   再逐个走互操作边界。不需要时务必整段跳过。
+                if (!needStatic)
+                {
+                    // 不扫容器时把「容器发现缓存」作废，下次需要时重新 FindObjectsOfType
+                    CachedContainers = null;
+                }
+                else if (CachedContainers == null)
                 {
                     CachedContainers = OracleCollections.ToManagedList(
                         Object.FindObjectsOfType<LootableContainer>());

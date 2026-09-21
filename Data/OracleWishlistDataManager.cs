@@ -30,6 +30,12 @@ namespace Oracle.Data
         private const float ScanInterval = 2f;
         private const int BatchSize = 30;
 
+        /// <summary>
+        /// 相位偏移 —— 与其它三个扫描器错开，避免尖峰叠加。
+        /// 详见 `OracleLootDataManager.PhaseOffset` 的完整说明。
+        /// </summary>
+        private const float PhaseOffset = 1.11f;
+
         /// <summary>愿望单扫描协程</summary>
         public static IEnumerator WishlistScannerCoroutine()
         {
@@ -41,7 +47,7 @@ namespace Oracle.Data
 
             while (true)
             {
-                yield return new WaitForSeconds(ScanInterval);
+                yield return new WaitForSeconds(ScanInterval + PhaseOffset);
 
                 if (!OracleGameState.InRaid || !WishlistESPCfg.EnablePlayerWishlistESP.Value)
                 {

@@ -30,6 +30,12 @@ namespace Oracle.Data
         private const float ScanInterval = 2f;
         private const int BatchSize = 300;
 
+        /// <summary>
+        /// 相位偏移 —— 与其它三个扫描器错开，避免尖峰叠加。
+        /// 详见 `OracleLootDataManager.PhaseOffset` 的完整说明。
+        /// </summary>
+        private const float PhaseOffset = 0.37f;
+
         /// <summary>扫描协程</summary>
         public static IEnumerator CorpseScannerCoroutine()
         {
@@ -39,9 +45,25 @@ namespace Oracle.Data
 
             while (true)
             {
-                yield return new WaitForSeconds(ScanInterval);
+                yield return new WaitForSeconds(ScanInterval + PhaseOffset);
 
                 if (!OracleGameState.InRaid)
+                {
+                    backBuffer.Clear();
+                    Swap(ref frontBuffer, ref backBuffer);
+                    CachedCorpseList = frontBuffer;
+                    continue;
+                }
+
+                // ★ 门禁：同战利品扫描器 —— 没人看就不扫。
+                //   尸体数据的消费方只有三处（已逐一核对）：
+                //     · 尸体 ESP          （ESP/CorpseESP.cs）
+                //     · 愿望单的尸体高亮   （ESP/WishlistESP.cs，由 EnableCorpseWishlistESP 控制）
+                //     · 原生叠加层        （Overlay/OverlayPrimitiveBuilder.cs，同样读这两个开关）
+                //   ⚠ 愿望单那一侧必须算进来：它打开时要在尸体里高亮愿望单物品，
+                //     扫描器下面第 141 行也是按这个开关决定要不要收集该数据的。
+                if (!CorpseESPCfg.EnableCorpseESP.Value
+                    && !WishlistESPCfg.EnableCorpseWishlistESP.Value)
                 {
                     backBuffer.Clear();
                     Swap(ref frontBuffer, ref backBuffer);

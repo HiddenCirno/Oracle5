@@ -48,7 +48,7 @@ namespace Oracle.ESP
             {
                 LootData loot = lootList[i];
 
-                Vector3 screenPos = cam.WorldToScreenPoint(loot.Position);
+                Vector3 screenPos = OracleRendering.WorldToScreen(cam, loot.Position);
                 if (screenPos.z <= 0.01f) continue;   // 背后不画
 
                 float screenX = screenPos.x;
@@ -60,7 +60,14 @@ namespace Oracle.ESP
                 {
                     if (loot.Price < fovMinPrice && loot.ItemLevel < fovMinLevel)
                     {
-                        float distToCenter = Vector2.Distance(screenCenter, new Vector2(screenX, screenY));
+                        // ⚠ 几何判定必须用【投影原始点】，不能用上面的 screenY。
+                        //   screenY 里带着 loot.YOffset —— 那是把容器里多条战利品的
+                        //   标签错开的【排版】偏移，与"物品在屏幕上的位置"无关；
+                        //   混进来会让门限随排版漂移（堆叠越深，判定越偏），
+                        //   表现为本该在圈内的物品被过滤掉、或圈外的漏进来。
+                        //   两种 Y 约定（左下/左上原点）算到中心的距离是一样的，
+                        //   因为屏幕中心在两种约定下都是 (W/2, H/2)。
+                        float distToCenter = Vector2.Distance(screenCenter, new Vector2(screenPos.x, screenPos.y));
                         if (distToCenter > fovRadius) continue;
                     }
                 }

@@ -50,7 +50,6 @@ namespace Oracle.ESP
             {
                 OracleRendering.EspMaterial.SetPass(0);
                 GL.PushMatrix();
-                GL.LoadPixelMatrix();
                 GL.Begin(GL.LINES);
                 GL.Color(OracleColorManager.Tripwire);
 
@@ -59,15 +58,18 @@ namespace Oracle.ESP
                     TripwireData trap = tripwires[i];
                     if (!OracleCommon.IsInRange(maxDistance, playerPos, trap.CenterPos)) continue;
 
-                    Vector3 a = cam.WorldToScreenPoint(trap.StartPos);
-                    Vector3 b = cam.WorldToScreenPoint(trap.EndPos);
+                    Vector3 a = OracleRendering.WorldToScreen(cam, trap.StartPos);
+                    Vector3 b = OracleRendering.WorldToScreen(cam, trap.EndPos);
                     if (a.z <= 0.01f || b.z <= 0.01f) continue;
 
-                    // ⚠ 上面的 GL.LoadPixelMatrix() 原点在左下、Y 轴向上，
-                    //   与 WorldToScreenPoint 约定一致，故直接用原值，不要翻转。
-                    //   （下方 GUI.Label 走的是 GUI 空间，那个才需要 Screen.height - y。）
-                    GL.Vertex3(a.x, a.y, 0);
-                    GL.Vertex3(b.x, b.y, 0);
+                    // ⚠ 不要用 GL.LoadPixelMatrix()。它的坐标系挂在【相机视口】上，
+                    //   开 DLSS 时视口只有屏幕的 0.588，画出来的线会被放大 1.7 倍、
+                    //   锚到左下角那块窄区域里（自瞄 FOV 圈踩过同一个坑，
+                    //   表现为右上角一段红弧，详见 OracleRendering.DrawCircle 的注释）。
+                    //   这里继承 OnGUI 的环境 GUI 空间（铺满整屏、原点左上、Y 向下），
+                    //   与 OracleRendering.WorldToScreen 的左下原点约定差一个 Y 翻转。
+                    GL.Vertex3(a.x, Screen.height - a.y, 0);
+                    GL.Vertex3(b.x, Screen.height - b.y, 0);
                 }
 
                 GL.End();
@@ -83,7 +85,7 @@ namespace Oracle.ESP
                 TripwireData trap = tripwires[i];
                 if (!OracleCommon.IsInRange(maxDistance, playerPos, trap.CenterPos)) continue;
 
-                Vector3 center = cam.WorldToScreenPoint(trap.CenterPos);
+                Vector3 center = OracleRendering.WorldToScreen(cam, trap.CenterPos);
                 if (center.z <= 0.01f) continue;
 
                 int dist = Mathf.RoundToInt(Vector3.Distance(playerPos, trap.CenterPos));

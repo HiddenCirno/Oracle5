@@ -120,7 +120,7 @@ namespace Oracle.Combat
                 if (!aimPos.HasValue) continue;
 
                 // 深度过滤：背对时 screenPos.z <= 0
-                Vector3 screenPos = cam.WorldToScreenPoint(aimPos.Value);
+                Vector3 screenPos = OracleRendering.WorldToScreen(cam, aimPos.Value);
                 if (screenPos.z <= 0.01f) continue;
 
                 float distToCenter = Vector2.Distance(screenCenter, new Vector2(screenPos.x, screenPos.y));
@@ -163,27 +163,20 @@ namespace Oracle.Combat
             Vector3? aimPos = GetAimBonePosition(target);
             if (!aimPos.HasValue) return;
 
-            Vector3 screenPos = cam.WorldToScreenPoint(aimPos.Value);
+            Vector3 screenPos = OracleRendering.WorldToScreen(cam, aimPos.Value);
             if (screenPos.z <= 0.01f) return;
 
             Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
 
-            // ⚠ 这里【不能】做 Screen.height - y 翻转。
+            // 坐标交给 OracleRendering.DrawLine，它接受"屏幕像素、原点左下、Y 向上"，
+            // 内部翻 Y 后画进环境 GUI 空间。传输空间选择的理由见该方法的注释。
             //
-            // 本工程并存着两套 GL 坐标空间，混用会导致整条线上下镜像：
-            //
-            //   · 环境矩阵（不调用 LoadPixelMatrix，继承 OnGUI 的矩阵）
-            //       → GUI 空间，原点在左上、Y 轴向下，需要 Screen.height - y。
-            //       PlayerESP.DrawBoneLine 属于这一类，所以它翻转是对的。
-            //
-            //   · GL.LoadPixelMatrix()
-            //       → Unity 官方文档明确写着「The coordinate (0,0) is at the bottom left
-            //         corner of current camera's viewport」，即原点在左下、Y 轴向上，
-            //         与 Camera.WorldToScreenPoint 的约定【完全一致】，因此直接用原值。
-            //       本方法与 DrawCircle、TripwireESP 的连线都属于这一类。
-            //
-            // 之前误把骨骼线的翻转惯例套用到这里，导致锁定线上下镜像。
-            // 之所以迟迟没暴露：FOV 圈与准星都是中心对称的，翻转与否看不出差别。
+            // ⚠ 历史遗留（已废弃，勿再采信）：这里曾断言 GL.LoadPixelMatrix() 的原点
+            //   与 WorldToScreen 一致、因此不能翻 Y。那句引用自 Unity 文档的
+            //   "bottom left corner of **current camera's viewport**" 恰恰是问题所在 ——
+            //   视口 ≠ 屏幕：开 DLSS 时相机视口只有屏幕的 0.588，那一套空间画出来的
+            //   图会被放大 1.7 倍并锚到左下角，实机表现为自瞄 FOV 圈歪到右上角只剩一段红弧。
+            //   现已全程改用环境 GUI 空间。
             var endPos = new Vector2(screenPos.x, screenPos.y);
 
             OracleRendering.DrawLine(screenCenter, endPos, OracleColorManager.AimbotCircle);

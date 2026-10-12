@@ -44,7 +44,7 @@ namespace Oracle.ESP
             {
                 CorpseData corpse = corpses[i];
 
-                Vector3 screenPos = cam.WorldToScreenPoint(corpse.Position);
+                Vector3 screenPos = OracleRendering.WorldToScreen(cam, corpse.Position);
                 if (screenPos.z <= 0.01f) continue;
 
                 // 比玩家标签略高一点，避免和尸体愿望单首行重叠

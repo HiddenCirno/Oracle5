@@ -193,7 +193,7 @@ namespace Oracle.ESP
                 if (!headPos.HasValue) continue;
 
                 //向头顶偏移，避免与骨骼重叠
-                Vector3 textScreenPos = cam.WorldToScreenPoint(headPos.Value + new Vector3(0, 0.3f, 0));
+                Vector3 textScreenPos = OracleRendering.WorldToScreen(cam, headPos.Value + new Vector3(0, 0.3f, 0));
                 if (textScreenPos.z <= 0.01f) continue; // 背后不画
 
                 var info = OraclePlayerDataManager.GetEntityInfo(player, isTeammate);
@@ -237,7 +237,7 @@ namespace Oracle.ESP
         {
             if (player == null) return;
 
-            Vector3 feetScreenPos = cam.WorldToScreenPoint(player.Transform.position);
+            Vector3 feetScreenPos = OracleRendering.WorldToScreen(cam, player.Transform.position);
             if (feetScreenPos.z <= 0.01f) return;
 
             OraclePlayerDataManager.GetPlayerTotalHealth(player, out float curHp, out float maxHp);
@@ -285,8 +285,8 @@ namespace Oracle.ESP
         {
             if (!p1.HasValue || !p2.HasValue) return;
 
-            Vector3 s1 = cam.WorldToScreenPoint(p1.Value);
-            Vector3 s2 = cam.WorldToScreenPoint(p2.Value);
+            Vector3 s1 = OracleRendering.WorldToScreen(cam, p1.Value);
+            Vector3 s2 = OracleRendering.WorldToScreen(cam, p2.Value);
 
             if (s1.z > 0.01f && s2.z > 0.01f)
             {

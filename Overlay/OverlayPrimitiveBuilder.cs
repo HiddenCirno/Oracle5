@@ -146,8 +146,8 @@ namespace Oracle.Overlay
         private static void AddBoneLine(Player player, EBodyPart part, Color baseColor, Vector3? p1, Vector3? p2)
         {
             if (!p1.HasValue || !p2.HasValue) return;
-            Vector3 s1 = _cam.WorldToScreenPoint(p1.Value);
-            Vector3 s2 = _cam.WorldToScreenPoint(p2.Value);
+            Vector3 s1 = OracleRendering.WorldToScreen(_cam, p1.Value);
+            Vector3 s2 = OracleRendering.WorldToScreen(_cam, p2.Value);
             //深度检查：防止贴脸骨骼满天飞
             if (s1.z <= 0.01f || s2.z <= 0.01f) return;
             _block.AddLine(new OverlayLine
@@ -181,7 +181,7 @@ namespace Oracle.Overlay
                 if (!headPos.HasValue) continue;
 
                 //向头顶偏移防止与骨骼重叠
-                Vector3 textScreenPos = _cam.WorldToScreenPoint(headPos.Value + new Vector3(0, 0.3f, 0));
+                Vector3 textScreenPos = OracleRendering.WorldToScreen(_cam, headPos.Value + new Vector3(0, 0.3f, 0));
                 if (textScreenPos.z <= 0.01f) continue;
 
                 //纯文本段 + 颜色（数据桥专用，不拆解 OnGUI 富文本）
@@ -286,7 +286,7 @@ namespace Oracle.Overlay
                 if (player == null || player == OracleGameState.LocalPlayer || player.HealthController == null) continue;
                 if (!OracleCommon.IsInRange((int)maxDist, myPos, player.Transform.position)) continue;
 
-                Vector3 feetScreenPos = _cam.WorldToScreenPoint(player.Transform.position);
+                Vector3 feetScreenPos = OracleRendering.WorldToScreen(_cam, player.Transform.position);
                 if (feetScreenPos.z <= 0.01f) continue;
 
                 OraclePlayerDataManager.GetPlayerTotalHealth(player, out float curHp, out float maxHp);
@@ -335,7 +335,7 @@ namespace Oracle.Overlay
 
             foreach (LootData loot in OracleLootDataManager.CachedLootList)
             {
-                Vector3 screenPos = _cam.WorldToScreenPoint(loot.Position);
+                Vector3 screenPos = OracleRendering.WorldToScreen(_cam, loot.Position);
                 if (screenPos.z <= 0.01f) continue;
 
                 float screenX = screenPos.x;
@@ -381,7 +381,7 @@ namespace Oracle.Overlay
 
             foreach (CorpseData corpse in OracleCorpseDataManager.CachedCorpseList)
             {
-                Vector3 screenPos = _cam.WorldToScreenPoint(corpse.Position);
+                Vector3 screenPos = OracleRendering.WorldToScreen(_cam, corpse.Position);
                 if (screenPos.z <= 0.01f) continue;
 
                 float screenX = screenPos.x;
@@ -417,7 +417,7 @@ namespace Oracle.Overlay
             }
         }
 
-        // ═══════════════════ 绊雷（线不翻转 y：LoadPixelMatrix 语义；文本翻转 y） ═══════════════════
+        // ═══════════════════ 绊雷（线与文本都翻转 y：叠加层是左上原点，见下方各自注释） ═══════════════════
 
         private static void BuildTripwire()
         {
@@ -433,8 +433,8 @@ namespace Oracle.Overlay
                 if (!OracleCommon.IsInRange(maxDistance, playerPos, trap.CenterPos)) continue;
 
                 //实体线（⚠ GDI 是左上原点、y 向下：WorldToScreenPoint 是左下原点，必须翻转 y）
-                Vector3 sA = _cam.WorldToScreenPoint(trap.StartPos);
-                Vector3 sB = _cam.WorldToScreenPoint(trap.EndPos);
+                Vector3 sA = OracleRendering.WorldToScreen(_cam, trap.StartPos);
+                Vector3 sB = OracleRendering.WorldToScreen(_cam, trap.EndPos);
                 if (sA.z > 0.01f && sB.z > 0.01f)
                 {
                     _block.AddLine(new OverlayLine
@@ -447,7 +447,7 @@ namespace Oracle.Overlay
                 }
 
                 //距离标签（y 翻转）
-                Vector3 screenCenter = _cam.WorldToScreenPoint(trap.CenterPos);
+                Vector3 screenCenter = OracleRendering.WorldToScreen(_cam, trap.CenterPos);
                 if (screenCenter.z <= 0.01f) continue;
 
                 int dist = Mathf.RoundToInt(Vector3.Distance(playerPos, trap.CenterPos));
@@ -482,7 +482,7 @@ namespace Oracle.Overlay
                 : OraclePlayerDataManager.GetBonePos(Aimbot.LockedTarget.PlayerBones.Spine3);
             if (!headPos.HasValue) return;
 
-            Vector3 screenPos = _cam.WorldToScreenPoint(headPos.Value);
+            Vector3 screenPos = OracleRendering.WorldToScreen(_cam, headPos.Value);
             if (screenPos.z <= 0.01f) return;
 
             //目标线（⚠ GDI 左上原点：终点 y 必须翻转；起点是屏幕中心，对称不受影响）
@@ -497,7 +497,7 @@ namespace Oracle.Overlay
 
         // ═══════════════════ 工具方法 ═══════════════════
 
-        /// <summary>屏幕空间圆（64 段折线），圆心对称不涉及 y 翻转</summary>
+        /// <summary>屏幕空间圆（64 段折线）。入参圆心/半径沿用左下原点的屏幕约定，内部翻 y</summary>
         private static void AddCircle(Vector2 center, float radius, OracleColor color, byte alpha, int segments)
         {
             AddCircle(center, radius, color.ToArgb(), alpha, segments);
@@ -510,12 +510,17 @@ namespace Oracle.Overlay
             {
                 float a1 = i * angleStep;
                 float a2 = (i + 1) * angleStep;
+                // ⚠ 叠加层原语是【左上原点、y 向下】（GDI DIB 是负高度=自顶向下，
+                //   见渲染器里的 biHeight = -h），而入参 center 沿用左下原点的屏幕约定
+                //   （与 OracleRendering.WorldToScreen 一致），故 sin 分量要翻。
+                //   当前唯一调用点圆心恒为屏幕正中、圆周对称，翻不翻看不出差别；
+                //   但保持约定一致，免得以后拿它画偏心圆时上下镜像。
                 _block.AddLine(new OverlayLine
                 {
                     X1 = center.x + Mathf.Cos(a1) * radius,
-                    Y1 = center.y + Mathf.Sin(a1) * radius,
+                    Y1 = _screenH - (center.y + Mathf.Sin(a1) * radius),
                     X2 = center.x + Mathf.Cos(a2) * radius,
-                    Y2 = center.y + Mathf.Sin(a2) * radius,
+                    Y2 = _screenH - (center.y + Mathf.Sin(a2) * radius),
                     Color = color,
                     Alpha = alpha
                 });

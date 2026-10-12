@@ -112,7 +112,7 @@ namespace Oracle.ESP
                 Vector3? headPos = OraclePlayerDataManager.GetBonePos(player.PlayerBones.Head);
                 if (!headPos.HasValue) continue;
 
-                Vector3 screenPos = cam.WorldToScreenPoint(headPos.Value + new Vector3(0, 0.3f, 0));
+                Vector3 screenPos = OracleRendering.WorldToScreen(cam, headPos.Value + new Vector3(0, 0.3f, 0));
                 if (screenPos.z <= 0.01f) continue;
 
                 // 从主标签下方开始堆叠
@@ -144,7 +144,7 @@ namespace Oracle.ESP
                 var list = corpse.WishlistItems;
                 if (list == null || list.Count == 0) continue;
 
-                Vector3 screenPos = cam.WorldToScreenPoint(corpse.Position);
+                Vector3 screenPos = OracleRendering.WorldToScreen(cam, corpse.Position);
                 if (screenPos.z <= 0.01f) continue;
 
                 // 尸体标签自身在 -10f，这里从其下方继续

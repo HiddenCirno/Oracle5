@@ -294,7 +294,11 @@ namespace Oracle.Data
             if (itemKey == InventoryTemplateId) return;   // 过滤物品栏 / 尸体
             if (string.IsNullOrEmpty(itemName)) return;   // 过滤无名物品（内衬等）
 
-            int itemPrice = HandbookPrices.TryGetPrice(itemKey, out int p) ? p : 0;
+            // ⚠ 用 HasPrice 区分「价格表里没有这条」和「这条的价格是 0」：
+            //   前者是缺数据（模组物品、新物品），后者才是真的不值钱。
+            //   混为一谈会让缺数据的物品被下面的价格门槛静默丢掉 —— 这个坑已经踩过一次。
+            bool hasPrice = HandbookPrices.TryGetPrice(itemKey, out int p);
+            int itemPrice = hasPrice ? p : 0;
 
             int minPriceThreshold = LootESPCfg.LootESPMinPrice.Value;
             int filterLevel = GetLevelByPrice(minPriceThreshold);
@@ -327,7 +331,9 @@ namespace Oracle.Data
             }
 
             // 价值与等级双重过滤
-            if (itemPrice < minPriceThreshold && itemLevel < filterLevel) return;
+            // ★ 没有价格数据时不参与价格过滤：否则模组物品（Price=0 / Level=1）
+            //   会被默认门槛 15000 全部吞掉，而且一条日志都不留。
+            if (hasPrice && itemPrice < minPriceThreshold && itemLevel < filterLevel) return;
 
             string priceStr = FormatPrice(itemPrice);
             OracleColor color = GetColorByLevel(itemLevel);

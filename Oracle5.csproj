@@ -4,7 +4,10 @@
     Oracle 5.0 —— SPT 5 (BepInEx 6 / Unity IL2CPP) 版本
 
     与旧 Mono 工程的关键差异：
-      · TargetFramework 必须是 net6.0 —— BepInEx 6 的 CoreCLR 宿主运行时是 .NET 6.0.7
+      · TargetFramework 必须是 net10.0 —— 47965 起 BepInXDX/Il2CppInterop 改用 .NET 10，
+        宿主运行时是 .NET 10.0.12（崩溃日志里可见 CoreCLR 10.0.1226.42308）。
+        ⚠ 旧的 net6.0 会报 CS1705：BepInEx.Unity.IL2CPP / Il2CppInterop.Runtime
+          引用的 System.Runtime 10.0.0.0 高于工程引用的 6.0.0.0。
       · 游戏程序集不在 EscapeFromTarkov_Data\Managed（该目录在 IL2CPP 下不存在），
         而是 Il2CppInterop 生成的代理程序集，位于 BepInEx\interop
       · 入口基类是 BepInEx.Unity.IL2CPP.BasePlugin（不是 BaseUnityPlugin），它本身不是
@@ -12,7 +15,7 @@
   -->
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <AssemblyName>Oracle</AssemblyName>
     <RootNamespace>Oracle</RootNamespace>
@@ -44,6 +47,17 @@
 
   <!-- BepInEx 6 宿主与运行时 -->
   <ItemGroup>
+    <!-- 手册价格表走原版路由 /client/handbook/templates（Data/HandbookPrices.cs）。
+         ⚠ 这是 Oracle 唯一的 SPTushonka 引用，代价是已知且接受了的：
+           SPTushonka.PrePatch/Tushonka/StartupChecks 会扫描 plugins 下所有 DLL，
+           凡是引用 SPTushonka.* 且 major.minor 与当前不符的 → 弹框 + Environment.Exit(1)。
+           即：**SPTushonka 升 minor 时必须重编 Oracle**。
+         之所以不用"直接读 SPT_Data/database/templates/handbook.json"：那份是原版快照，
+         不含任何模组物品 → 模组物品 Price=0 → 被 LootESP 的价格门槛静默过滤掉。 -->
+    <Reference Include="SPTushonka.Common">
+      <HintPath>$(GameDir)\BepInEx\plugins\sptushonka\SPTushonka.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="BepInEx.Core">
       <HintPath>$(BepInExCore)\BepInEx.Core.dll</HintPath>
       <Private>false</Private>

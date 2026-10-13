@@ -235,6 +235,24 @@ namespace Oracle.RaidManager
 
             try
             {
+                // ══════════════════════════════════════════════════════════════
+                //  ★ 刻意【不】调用 OnBeenKilledByAggressor —— 本按钮必须与玩家无关
+                //
+                //  历史教训：曾在这里写
+                //      player.OnBeenKilledByAggressor(local, ..., EDamageType.Bullet)
+                //  来"补凶手信息"，结果有两处副作用：
+                //    · 它把 Player.LastAggressor 置为本地玩家 → 游戏击杀统计/击杀提示
+                //      把这一杀算到玩家头上（"是我杀的"）；
+                //    · DogTagFix 的 OnBeenKilledByAggressor 分支据此把狗牌写成
+                //      Status="Killed by" + 玩家昵称 + 玩家 AccountId。
+                //  一次调试用击杀不该产生任何玩家战绩/凶手记录。
+                //
+                //  狗牌不会因此消失：KillMe 走的是【无凶手】伤害（no aggressor），
+                //  死亡流程仍会触发 Player.OnDead，DogTagFix 的 OnDead 分支带
+                //  "KillerAccountId 为空才写"的守卫，会补出完整狗牌 ——
+                //  只是 Status="Died"、凶手为空，这才是无凶手死亡的正常形态。
+                // ══════════════════════════════════════════════════════════════
+
                 // ⚠ 第二个参数在 5.0 是 Single（4.1 是 int）—— 传 int 字面量会隐式转换，无妨
                 player.KillMe(EBodyPartColliderType.HeadCommon, 99999999f);
 

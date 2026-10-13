@@ -91,7 +91,9 @@ namespace Oracle
             typeof(Combat.NoWeaponDurabilityCost.DurabilityLossPatch),
 
             // ── 战斗模块 · 隐身 ──
-            typeof(Combat.GhostMode.BotGroupAddEnemyPatch),
+            // 47965 起 BotsGroup.AddEnemy 已不存在，改挂这两个仍然存在的入口
+            typeof(Combat.GhostMode.BotGroupReportEnemyPatch),
+            typeof(Combat.GhostMode.BotMemoryAddEnemyInfoPatch),
 
             // ── 奇迹之门 · 物品捕获（悬停追踪）──
             typeof(ItemSpawn.ItemViewPointerEnterPatch),
